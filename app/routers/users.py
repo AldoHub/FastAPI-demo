@@ -39,7 +39,7 @@ async def create_user(user: User):
     find_user = search_user(user.id)
     if type(find_user) == User:
        #raise an exception if the user already exists
-       raise HttpException(status_code=400, detail="User already exists")
+       raise HTTPException(status_code=400, detail="User already exists")
     else:
        users.append(user)
        return users
@@ -56,7 +56,7 @@ async def update_user(user_id: int, user: User):
         find_user.url = user.url
         return find_user
     else:
-        raise HttpException(status_code=400, detail="User not found")
+        raise HTTPException(status_code=400, detail="User not found")
 
 
 @router.delete("/user/{user_id}")
@@ -66,14 +66,14 @@ async def delete_user(user_id: int):
         users.remove(find_user)
         return {"message": "User deleted"}
     else:    
-        raise HttpException(status_code=404, detail="User not found")
+        raise HTTPException(status_code=404, detail="User not found")
 #---- UTILS ----
 
 #filter and return the user by id
 def search_user(user_id: int):
     user = filter(lambda user: user.id == user_id, users)
     try:
-        return list(user)[0]
+        return User(list(user)[0])
     except:
-        raise HttpException(status_code=400, detail="User not found")
+        raise HTTPException(status_code=400, detail="User not found")
 

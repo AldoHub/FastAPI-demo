@@ -4,13 +4,14 @@ from fastapi.staticfiles import StaticFiles
 
 
 #import the routers
-from app.routers import users, products
+from app.routers import users, products, basic_auth
 
 app = FastAPI()
 
 #add the routers to the app
 app.include_router(users.router)
 app.include_router(products.router)
+app.include_router(basic_auth.router)
 
 #static folder
 app.mount("/static", StaticFiles(directory="static"), name="static")
