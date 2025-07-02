@@ -4,9 +4,11 @@ from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 import jwt
 from jwt.exceptions import InvalidTokenError
 from passlib.context import CryptContext
+from datetime import datetime, timedelta
 
 router = APIRouter(prefix="/jwt", tags=["jwt"])
 
+#https://fastapi.tiangolo.com/tutorial/security/oauth2-jwt/#hash-and-verify-the-passwords
 
 SECRET_KEY = "09d25e094faa6ca2556c818166b7a9563b93f7099f6f0f4caa6cf63b88e8d3e7"
 ALGORITHM = "HS256"
@@ -32,14 +34,6 @@ usersDB = [
 ]
 
 
-async def get_current_user(token: str = Depends(oauth2_scheme)):
-    user = search_user(token)
-    if user:
-        return user
-    else:
-        raise HTTPException(status_code=400, detail="Invalid credentials")
-
-
 #receives the username and password as formdata and returns the access token
 @router.post("/login")
 async def login(form_data: OAuth2PasswordRequestForm = Depends()):
@@ -47,9 +41,50 @@ async def login(form_data: OAuth2PasswordRequestForm = Depends()):
 
     #verify the password
     if pwd_context.verify(form_data.password, user.hashed_password):
-        return {"access_token": user.name, "token_type": "bearer"}
+        #return the access token
+       
+        #token expiration
+        access_token_expiration = datetime.utcnow() + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+        #token details
+        access_token_details = {
+            "sub": user.name,
+            "exp": access_token_expiration
+        }
+
+        access_token = jwt.encode(access_token_details, SECRET_KEY, algorithm=ALGORITHM)
+        
+        return {"access_token": access_token, "token_type": "bearer"}
     else:
         raise HTTPException(status_code=403, detail="Invalid username or password")
+
+
+
+async def authenticate_user(token: str = Depends(oauth2_scheme)):
+    try:
+        jwt_token = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        user = search_user(jwt_token["sub"])
+        if not user:
+            raise HTTPException(status_code=400, detail="Invalid credentials")
+        return User(id=user.id, name=user.name)
+    except InvalidTokenError:
+        raise HTTPException(status_code=400, detail="Invalid credentials")
+
+
+
+async def get_current_user(user: User = Depends(authenticate_user)):
+    user = search_user(user.name)
+    if user:
+        return user
+    else:
+        raise HTTPException(status_code=400, detail="Invalid credentials")
+
+
+
+    
+#returns the user information
+@router.get("/users/me")
+async def read_user_me(user: User = Depends(get_current_user)):
+    return User(id=user.id, name=user.name)
 
 
 #search user by id
